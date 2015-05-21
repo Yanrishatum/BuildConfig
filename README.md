@@ -1,19 +1,27 @@
 # BuildConfig
 Haxe Macro-based tool for inlining Json configuration files.
 
+
 `String`, `Int`, `Float` and `Bool` are inlined.
+
 Objects are interpreted as nodes if not said otherwise.
+
 Objects that not nodes and Arrays are not inlined and exists as generated code in BCResource class.
 
 Library supports TJSON library and use it instead of default Haxe json parser until bc_notjson define set.
+
 You can define your own data parser with bc_customJson define, in which you must put a classpath to custom Json parser class.
+
 Custom Json parser class must have `parse` or `run` function with type `String->Dynamic`.
 
 # Api
 ## `@:build` functions:
 `com.bconfig.BuildConfig.build(configs:Array<String>, includeConfigName:Bool = false)` - Build several config files into extern class.
+
 `com.bconfig.BuildConfig.buildOne(config:String, includeConfigName:Bool = false)` - Build one config file into extern class.
+
 `includeConfigName` - If set to `true`, config file name will be used as root node of config file. (e.g. `Config.fileName.value` instead of `Config.value`)
+
 ## Json configs meta:
 `__bc_inline` - If set to false - Json object in which this value will be inserted as non-inline.
 
@@ -24,6 +32,7 @@ extern class SingleConfig { }
 ```
 Note that class must be marked as `extern`, otherwise you'll get a compilation errors.
 If you build several configs into one class and don't use independed nodes for files, some values can be overriten by each other.
+
 If you want to put Json Object as non-inlined object, add `"__bc_inline": false` parameter to it.
 
 # Future plans
