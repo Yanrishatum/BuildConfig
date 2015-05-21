@@ -1,0 +1,11 @@
+{
+  "name": "BuildConfig",
+  "url": "http://github.com/yanrishatum/BuildConfig",
+  "license": "MIT",
+  "tags": [ "cross", "config", "json", "macro", "bconfig" ],
+  "description": "Haxe Macro-based tool for inlining Json configuration files.",
+  "version": "1.0.0",
+  "releasenote": "Initial release",
+  "contributors": [ "yanrishatum" ],
+  "dependencies": {}
+}

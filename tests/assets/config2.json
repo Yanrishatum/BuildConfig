@@ -1,0 +1,11 @@
+{
+  "c2_intValue": 0,
+  "c2_floatValue": 0.0,
+  "c2_floatValue2": 0.5,
+  "c2_boolValue": false,
+  "overridingValue": "Overriden by config2",
+  "subNode":
+  {
+    "c2_subNodeValue": "StringValue"
+  }
+}

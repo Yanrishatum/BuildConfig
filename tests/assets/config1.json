@@ -1,0 +1,17 @@
+{
+  "intValue": 0,
+  "floatValue": 0.0,
+  "floatValue2": 0.5,
+  "boolValue": false,
+  "overridingValue": "Not overriden",
+  "subNode":
+  {
+    "subNodeValue": "StringValue"
+  }
+  "nonInlinedNode":
+  {
+    "__bc_inline": false,
+    "value": 1.0,
+    "value2": "false"
+  }
+}
