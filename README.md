@@ -20,6 +20,18 @@ If this set to `false`, config may override values of each other (last config in
 
 ### Json configs meta:
 `__bc_inline` - If set to false - Json object in which this value will be inserted as non-inline.  
+Put this meta into Json object and set it value to `false` to disable inlining of this object. Example:  
+```
+"lem":
+{
+  "__bc_inline": false,
+  "Sepulki": "see Sepulkarii",
+  "Sepulkarii": "see Sepulenie",
+  "Sepulenie:" "see Sepulki"
+}
+```  
+This object will be inserted as non-inlined node and placed in code as-is (except `__bc_inline` meta)
+
 ### Defines:
 `bc_notjson` - Disable using of TJSON library if it's present.  
 `bc_customJson` - Path to custom Json parser. Example of contents: `com.some.random.class.path.Parser`.  
