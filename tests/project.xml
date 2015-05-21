@@ -19,6 +19,9 @@
 	<haxelib name="actuate" />
 	<haxelib name="tjson"/>
   
+  <haxedef name="bc_write"/>
+  <haxedef name="bc_merge"/>
+  
 	<!-- optimize output
 	<haxeflag name="-dce full" /> -->
 	<haxeflag name="-D dump=pretty" /> -->

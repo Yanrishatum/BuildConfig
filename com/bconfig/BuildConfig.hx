@@ -123,8 +123,9 @@ class BuildConfig
             }
           }
           else throw "Invalid custom Json parser class name!";
-          #elseif (tjson && !bc_notjson)
-          return tjson.TJSON.parse(text, file);
+          #elseif tjson
+          if (useTjson()) return tjson.TJSON.parse(text, file);
+          else return haxe.Json.parse(text);
           #else
           return haxe.Json.parse(text);
           #end
@@ -133,6 +134,18 @@ class BuildConfig
     throw "File in path '" + file + "' not found!";
     return null;
   }
+  
+  #if tjson
+  private static function useTjson():Bool
+  {
+    if (Context.defined("bc_tjson"))
+    {
+      var val:String = Context.definedValue("bc_tjson");
+      return val == "0" || val == "false";
+    }
+    return true;
+  }
+  #end
   
   private static function insert(name:String, value:Dynamic, target:Array<Field>, path:Array<String>):Void
   {
@@ -183,7 +196,7 @@ class BuildConfig
     var valueType:ComplexType = Context.toComplexType(Context.typeof(valueExpr));
     var resName:String = null;
     
-    // Remove overriding.
+    // Remove old values.
     checkOverride(name, target);
     
     // Insert property.
@@ -193,9 +206,11 @@ class BuildConfig
       pos: pos,
       doc: (isInline ? "Inlined = " + Std.string(value) : "Non inlined, resource #" + resources.fields.length),
       access: isStatic ? [Access.APublic, Access.AStatic] : [Access.APublic],
-      kind: FieldType.FProp("get_" + name, "never", valueType)
+      kind: if (Context.defined("bc_write") && !isInline)
+              FieldType.FProp("get_" + name, "set_" + name, valueType)
+            else
+              FieldType.FProp("get_" + name, "never", valueType)
     });
-    
     // Generating getter function
     var fun:FieldType;
     if (isInline)
@@ -213,12 +228,13 @@ class BuildConfig
     }
     else
     {
-      resName = "res_" + resources.fields;
+      resName = "res_" + resources.fields.length;
+      
       fun = FieldType.FFun(
       {
         args: [],
         ret: valueType,
-        expr:
+        expr: //macro return ${resources.name}.${resName};
         {
           expr: ExprDef.EReturn(
           {
@@ -232,6 +248,42 @@ class BuildConfig
           pos:pos
         }
       });
+      
+      if (Context.defined("bc_write"))
+      {
+        target.push( {
+          name: "set_" + name,
+          pos: pos,
+          access: isStatic ? [Access.APrivate, Access.AStatic, Access.AInline] : [Access.APrivate, Access.AInline],
+          kind:
+            FieldType.FFun(
+            {
+              args: [ { name: "value", type: valueType } ],
+              ret: valueType,
+              expr: //macro return $i{resources.name}.$i{resName} = value;
+              {
+                expr: ExprDef.EReturn(
+                {
+                  expr: ExprDef.EBinop(Binop.OpAssign,
+                  {
+                    expr: ExprDef.EField(
+                    {
+                      expr: ExprDef.EConst(Constant.CIdent(resources.name)),
+                      pos: pos
+                    }, resName),
+                    pos: pos
+                  },
+                  {
+                    expr: ExprDef.EConst(Constant.CIdent("value")),
+                    pos: pos
+                  }),
+                  pos: pos
+                }),
+                pos: pos
+              }
+            })
+        });
+      }
       
       // Inject resource.
       resources.fields.push(
