@@ -1,0 +1,6 @@
+1.0.1:
+* Fixed resource naming for non-inline resources.
+* Removed bc_notjson and replaced by bc_tjson.
+* Added bc_write define that enables write access to non-inlined resources.
+
+1.0.0: Initial release.

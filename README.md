@@ -1,7 +1,7 @@
 # BuildConfig
 Haxe Macro-based tool for inlining Json configuration files.
 
-BConfig supports TJSON library and use it instead of default Haxe json parser unless `bc_notjson` define set.  
+BConfig supports TJSON library and use it instead of default Haxe json parser unless `bc_tjson` said otherwise. See defines in Api.  
 You can define your own data parser with `bc_customJson` define. See defines in Api.  
 Haxe autocomplete provides navigation trough configuration files.
 
@@ -33,9 +33,10 @@ Put this meta into Json object and set it value to `false` to disable inlining o
 This object will be inserted as non-inlined node and placed in code as-is (except `__bc_inline` meta)
 
 ### Defines:
-`bc_notjson` - Disable using of TJSON library if it's present.  
+`bc_tjson` - Set this to `0` or `false` to disable using of TJSON library if it's present.  
 `bc_customJson` - Path to custom Json parser. Example of contents: `com.some.random.class.path.Parser`.  
-Parser must contain static `parse` or `run` function with type `String->Dynamic`
+Parser must contain static `parse` or `run` function with type `String->Dynamic`  
+`bc_write` - Enables write-access to non-inlined resources.
 
 ## Usage
 ```
@@ -51,7 +52,6 @@ If you want to put Json Object as non-inlined object, add `"__bc_inline": false`
 * Sort of hotload feature. Requiring to recompile application every time you change config file while developing is not very comfortable. :)
 * Merging of non-inlined objects and arrays.
 * Meta support in node names.
-* Read-write access for non-inline resources.
 
 # Licence
 This is free and unencumbered software released into the public domain.
