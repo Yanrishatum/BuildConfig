@@ -1,33 +1,57 @@
 # BuildConfig
 Haxe Macro-based tool for inlining Json configuration files.
 
-`String`, `Int`, `Float` and `Bool` are inlined.
-Objects are interpreted as nodes if not said otherwise.
-Objects that not nodes and Arrays are not inlined and exists as generated code in BCResource class.
+BConfig supports TJSON library and use it instead of default Haxe json parser unless `bc_notjson` define set.  
+You can define your own data parser with `bc_customJson` define. See defines in Api.  
+Haxe autocomplete provides navigation trough configuration files.
 
-Library supports TJSON library and use it instead of default Haxe json parser until bc_notjson define set.
-You can define your own data parser with bc_customJson define, in which you must put a classpath to custom Json parser class.
-Custom Json parser class must have `parse` or `run` function with type `String->Dynamic`.
+### Type handling
+`String`, `Int`, `Float` and `Bool` are inlined.  
+Objects are interpreted as nodes if not said otherwise (see config meta in Api).  
+Objects that not nodes and Arrays are not inlined and exists as generated code in BCResource class.  
 
-# Api
-## `@:build` functions:
-`com.bconfig.BuildConfig.build(configs:Array<String>, includeConfigName:Bool = false)` - Build several config files into extern class.
+## Api
+### `@:build` functions:
+`com.bconfig.BuildConfig.build(configs:Array<String>, includeConfigName:Bool = false)` - Build several config files into extern class.  
 `com.bconfig.BuildConfig.buildOne(config:String, includeConfigName:Bool = false)` - Build one config file into extern class.
-`includeConfigName` - If set to `true`, config file name will be used as root node of config file. (e.g. `Config.fileName.value` instead of `Config.value`)
-## Json configs meta:
-`__bc_inline` - If set to false - Json object in which this value will be inserted as non-inline.
 
-# Usage
+`includeConfigName` - If set to `true`, config file name will be used as root node of config file. (e.g. `Config.fileName.value` instead of `Config.value`)  
+If this set to `false`, config may override values of each other (last config in list override all previous). Overriding includes everything except object-nodes, they are merged.
+
+### Json configs meta:
+`__bc_inline` - If set to false - Json object in which this value will be inserted as non-inline.  
+Put this meta into Json object and set it value to `false` to disable inlining of this object. Example:  
+```
+"lem":
+{
+  "__bc_inline": false,
+  "Sepulki": "see Sepulkarii",
+  "Sepulkarii": "see Sepulenie",
+  "Sepulenie:" "see Sepulki"
+}
+```  
+This object will be inserted as non-inlined node and placed in code as-is (except `__bc_inline` meta)
+
+### Defines:
+`bc_notjson` - Disable using of TJSON library if it's present.  
+`bc_customJson` - Path to custom Json parser. Example of contents: `com.some.random.class.path.Parser`.  
+Parser must contain static `parse` or `run` function with type `String->Dynamic`
+
+## Usage
 ```
 @:build(com.bconfig.BuildConfig.buildOne("assets/config1.json", false))
 extern class SingleConfig { }
 ```
 Note that class must be marked as `extern`, otherwise you'll get a compilation errors.
-If you build several configs into one class and don't use independed nodes for files, some values can be overriten by each other.
+If you build several configs into one class and don't use independed nodes for files, some values can be overriten by each other (see `includeConfigName` documentation).
+
 If you want to put Json Object as non-inlined object, add `"__bc_inline": false` parameter to it.
 
-# Future plans
-Sort of hotload feature. Requiring to recompile application every time you change config file while developing is not very comfortable. :)
+## Future plans
+* Sort of hotload feature. Requiring to recompile application every time you change config file while developing is not very comfortable. :)
+* Merging of non-inlined objects and arrays.
+* Meta support in node names.
+* Read-write access for non-inline resources.
 
 # Licence
 This is free and unencumbered software released into the public domain.
