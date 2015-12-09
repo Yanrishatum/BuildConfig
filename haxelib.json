@@ -4,8 +4,8 @@
   "license": "MIT",
   "tags": [ "cross", "config", "json", "macro", "bconfig" ],
   "description": "Haxe Macro-based tool for inlining Json configuration files.",
-  "version": "1.0.1",
-  "releasenote": "Fixed non-inline resource naming, removed bc_notjson define, added bc_tjson and bc_write defines.",
+  "version": "1.1.0",
+  "releasenote": "Added experimental debug config loading without inlining. Several fixes.",
   "contributors": [ "yanrishatum" ],
   "dependencies": {}
 }
