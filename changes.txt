@@ -1,3 +1,8 @@
+1.1.0:
+* Added bc_debug define that enables reloading of config files without recompilation. Does not inlines any values. Experimental
+* Fixed bug for setter dublicates with bc_write enabled.
+* Disabled typing for arrays with various different types. Only allowed Array with multiple types is Float/Int.
+
 1.0.1:
 * Fixed resource naming for non-inline resources.
 * Removed bc_notjson and replaced by bc_tjson.

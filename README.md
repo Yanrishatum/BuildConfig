@@ -36,7 +36,9 @@ This object will be inserted as non-inlined node and placed in code as-is (excep
 `bc_tjson` - Set this to `0` or `false` to disable using of TJSON library if it's present.  
 `bc_customJson` - Path to custom Json parser. Example of contents: `com.some.random.class.path.Parser`.  
 Parser must contain static `parse` or `run` function with type `String->Dynamic`  
-`bc_write` - Enables write-access to non-inlined resources.
+`bc_write` - Enables write-access to non-inlined resources.  
+`bc_debug` - Experimental! Enables reloading of config file in runtime. Does not inlines any data, yet gives write-acces same as before (only non-inline values and with `bc_write`).
+Currently supports only `sys` platforms and requires manual loading of config via `<ConfigClass>.reload<ConfigName>("<path to .json>")` (for example: `Config.reloadGlobal("assets/global.json")`).
 
 ## Usage
 ```

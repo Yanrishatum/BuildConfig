@@ -4,6 +4,7 @@ import haxe.ds.Either;
 import haxe.io.Path;
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import haxe.macro.Type;
 import sys.FileSystem;
 import sys.io.File;
 
@@ -39,11 +40,17 @@ class BuildConfig
     definitionsCount = 0;
     definitions = new Map();
     
+    #if bc_debug
+    pos = Context.currentPos();
+    //resources.fields.push(create__init__(configs, result));
+    createReloaders(configs, result);
+    #end
+    
     for (file in configs)
     {
       buildFile(file, includeConfigName, result);
     }
-    
+    //trace(resources.fields.length);
     if (resources.fields.length != 0) Context.defineType(resources);
     
     for (def in definitions) Context.defineType(def);
@@ -75,24 +82,27 @@ class BuildConfig
   /** List of all typedefs. */
   private static var definitions:Map<String, TypeDefinition> = new Map();
   
+  private static var includingConfigNames:Bool;
+  
   /** Builds single configuration file. */
   private static function buildFile(file:String, includeConfigName:Bool, fields:Array<Field>):Void
   {
+    includingConfigNames = includeConfigName;
     var data:Dynamic = getData(file);
     if (data != null)
     {
       pos = Context.makePosition( { min: 0, max: 0, file: file } );
-      
+      var filename:String = new Path(file).file;
       if (includeConfigName)
       {
-        insert(new Path(file).file, data, root, []);
+        insert(filename, data, root, [], filename);
       }
       else
       {
         var dataFields:Array<String> = Reflect.fields(data);
         for (field in dataFields)
         {
-          insert(field, Reflect.field(data, field), root, []);
+          insert(field, Reflect.field(data, field), root, [], filename);
         }
       }
     }
@@ -147,16 +157,16 @@ class BuildConfig
   }
   #end
   
-  private static function insert(name:String, value:Dynamic, target:Array<Field>, path:Array<String>):Void
+  private static function insert(name:String, value:Dynamic, target:Array<Field>, path:Array<String>, configName:String):Void
   {
     if (Std.is(value, String) || Std.is(value, Int) || Std.is(value, Float) || Std.is(value, Bool))
     {
-      insertValue(name, value, target, true, target == root);
+      insertValue(name, value, target, true, target == root, path, configName);
     }
     else if (Std.is(value, Array))
     {
       // Arrays are not inlied.
-      insertValue(name, value, target, false, target == root);
+      insertValue(name, value, target, false, target == root, path, configName);
     }
     else
     {
@@ -164,7 +174,7 @@ class BuildConfig
       if (Reflect.hasField(value, "__bc_inline") && Reflect.field(value, "__bc_inline") == false)
       {
         Reflect.deleteField(value, "__bc_inline");
-        insertValue(name, value, target, false, target == root);
+        insertValue(name, value, target, false, target == root, path, configName);
       }
       else
       {
@@ -176,24 +186,317 @@ class BuildConfig
         for (node in subNodes)
         {
           var nodeValue:Dynamic = Reflect.field(value, node);
-          insert(node, nodeValue, def.fields, path);
+          insert(node, nodeValue, def.fields, path, configName);
         }
       }
     }
   }
   
-  private static function insertValue(name:String, value:Dynamic, target:Array<Field>, isInline:Bool, isStatic:Bool):Void
+  #if bc_debug
+  
+  private static function createReloaders(configs:Array<String>, fields:Array<Field>):Void
   {
+    
+    var block:Array<Expr> = new Array();
+    
+    var pos:Position;
+    
+    for (config in configs)
+    {
+      var name:String = getResourceName(new Path(config).file);
+      pos = Context.makePosition( { min: 0, max: 0, file:"com.bconfig.BuildConfig.hx[reload - "+config+"]" } );
+      
+      resources.fields.push( {
+        name: name,
+        pos: pos,
+        access: [Access.APublic, Access.AStatic],
+        kind: FieldType.FVar(ComplexType.TPath( { pack:[], name:"Dynamic" } ), null)
+      });
+      
+      var line:String;
+      
+      #if bc_customJson
+      var jsonParserName:String = Context.definedValue("bc_customJson");
+      var cl:Class<Dynamic> = Type.resolvePath(jsonParserName);
+      if (cl != null)
+      {
+        if (Reflect.hasField(cl, "parse")) line = jsonParserName + ".parse";
+        else if (Reflect.hasField(cl, "run")) line = jsonParserName + ".run";
+        else line = "haxe.Json.parse";
+      }
+      #elseif tjson
+      if (useTjson()) line = "tjson.TJSON.parse";
+      else line = "haxe.Json.parse";
+      #else
+      line = "haxe.Json.parse";
+      #end
+      
+      line = resources.name + "." + name + " = " + line + "(sys.io.File.getContent(path))";
+      
+      fields.push({
+      name:"reload" + name.substr(0, 1).toUpperCase() + name.substr(1),
+      pos: pos,
+      access: [Access.APublic, Access.AInline, Access.AStatic],
+      kind: FieldType.FFun(
+        {
+          args: [{ name:"path", type: macro :String }],
+          ret: macro :Void,
+          expr: macro { $e { Context.parse(line, pos) } }
+        })
+      });
+    }
+    
+  }
+  
+  private static function insertValue(name:String, value:Dynamic, target:Array<Field>, isInline:Bool, isStatic:Bool, path:Array<String>, configName:String):Void
+  {
+    var overrideType:ComplexType;
+    
     if (Std.is(value, Array))
     {
+      var dynamicType:Bool = false;
       var fixedArray:Array<Dynamic> = new Array();
       var oldArray:Array<Dynamic> = value;
-      for (item in oldArray) fixedArray.push(item);
+      
+      var firstFieldCount:Int = -1;
+      var types:Array<Array<Field>> = new Array();
+      var baseType:String = null;
+      
+      for (item in oldArray)
+      {
+        fixedArray.push(item);
+        
+        if (!dynamicType)
+        {
+          var t:ComplexType = Context.toComplexType(Context.typeof(Context.makeExpr(item, pos)));
+          switch (t)
+          {
+            case ComplexType.TAnonymous(fields):
+              if (baseType == null) baseType = "--anonymous";
+              if (firstFieldCount == -1) firstFieldCount = fields.length;
+              else if (firstFieldCount != fields.length || baseType != "--anonymous")
+              {
+                dynamicType = true;
+              }
+              types.push(fields);
+            case ComplexType.TPath(p):
+              var type:String = p.pack.join(".") + "." + p.name;
+              if (p.params != null && p.params.length > 0) type += "<" + p.params.join(",") + ">";
+              if (p.sub != null)
+              {
+                if (p.sub == "Int") type += ".Float"; // Allow Int/Float arrays as Float arrays.
+                else type += "." + p.sub;
+              }
+              
+              if (baseType == null) baseType = type;
+              else if (baseType != type)
+              {
+                dynamicType = true;
+              }
+            default:
+          }
+        }
+      }
       value = fixedArray;
+      
+      if (!dynamicType && baseType == "--anonymous")
+      {
+        var invalid:Bool = false;
+        for (i in 0...fixedArray.length)
+        {
+          var fields:Array<Field> = types[i];
+          for (j in i + 1 ... fixedArray.length)
+          {
+            var other:Array<Field> = types[j];
+            if (!compareStructures(fields, other))
+            {
+              invalid = true;
+              break;
+            }
+          }
+          if (invalid)
+          {
+            dynamicType = true;
+            break;
+          }
+        }
+      }
+      
+      if (dynamicType)
+      {
+        var expr:Expr = macro new Array<Dynamic>();
+        overrideType = Context.toComplexType(Context.typeof(expr));
+      }
     }
     
     var valueExpr:Expr = Context.makeExpr(value, pos);
-    var valueType:ComplexType = Context.toComplexType(Context.typeof(valueExpr));
+    var valueType:ComplexType;
+    try
+    {
+      valueType = overrideType != null ? overrideType : Context.toComplexType(Context.typeof(valueExpr));
+    }
+    catch (e:Dynamic)
+    {
+      //trace(e);
+      valueType = macro :Dynamic;
+    }
+    
+    var resName:String = null;
+    
+    // Remove old values.
+    checkOverride(name, target);
+    
+    // Insert property.
+    target.push(
+    {
+      name: name,
+      pos: pos,
+      doc: "Debug path: " + path.join(".") + "." + name,
+      access: isStatic ? [Access.APublic, Access.AStatic] : [Access.APublic],
+      kind: if (Context.defined("bc_write") && !isInline)
+              FieldType.FProp("get_" + name, "set_" + name, valueType)
+            else
+              FieldType.FProp("get_" + name, "never", valueType)
+    });
+    
+    // Generating getter function
+    
+    // Getter
+    var code:String = "return " + resources.name + ".";
+    if (!includingConfigNames) code += getResourceName(configName) + ".";
+    if (path.length > 0) code += path.join(".") + ".";
+    code += name;
+    
+    target.push({
+      name: "get_" + name,
+      pos: pos,
+      doc: resName,
+      access: isStatic ? [Access.APrivate, Access.AStatic, Access.AInline] : [Access.APrivate, Access.AInline],
+      kind: FieldType.FFun(
+        {
+          args: [],
+          ret: valueType,
+          expr: Context.parse(code, pos)
+        })
+    });
+    
+    if (!isInline && Context.defined("bc_write"))
+    {
+      target.push( {
+        name: "set_" + name,
+        pos: pos,
+        access: isStatic ? [Access.APrivate, Access.AStatic, Access.AInline] : [Access.APrivate, Access.AInline],
+        kind:
+          FieldType.FFun(
+          {
+            args: [ { name: "value", type: valueType } ],
+            ret: valueType,
+            expr: Context.parse(code + " = value", pos)
+          })
+      });
+    }
+  }
+  
+  private static function getResourceName(configName:String):String
+  {
+    return ~/[\\\/.]/g.replace(configName, "__");
+  }
+  
+  #else
+  
+  private static function insertValue(name:String, value:Dynamic, target:Array<Field>, isInline:Bool, isStatic:Bool, path:Array<String>, configName:String):Void
+  {
+    var overrideType:ComplexType;
+    if (Std.is(value, Array))
+    {
+      var dynamicType:Bool = false;
+      var fixedArray:Array<Dynamic> = new Array();
+      var oldArray:Array<Dynamic> = value;
+      
+      var firstFieldCount:Int = -1;
+      var types:Array<Array<Field>> = new Array();
+      var baseType:String = null;
+      
+      for (item in oldArray)
+      {
+        fixedArray.push(item);
+        
+        if (!dynamicType)
+        {
+          var t:ComplexType = Context.toComplexType(Context.typeof(Context.makeExpr(item, pos)));
+          switch (t)
+          {
+            case ComplexType.TAnonymous(fields):
+              if (baseType == null) baseType = "--anonymous";
+              if (firstFieldCount == -1) firstFieldCount = fields.length;
+              else if (firstFieldCount != fields.length || baseType != "--anonymous")
+              {
+                dynamicType = true;
+              }
+              types.push(fields);
+            case ComplexType.TPath(p):
+              var type:String = p.pack.join(".") + "." + p.name;
+              if (p.params != null && p.params.length > 0) type += "<" + p.params.join(",") + ">";
+              if (p.sub != null)
+              {
+                if (p.sub == "Int") type += ".Float"; // Allow Int/Float arrays as Float arrays.
+                else type += "." + p.sub;
+              }
+              
+              if (baseType == null) baseType = type;
+              else if (baseType != type)
+              {
+                dynamicType = true;
+              }
+            default:
+          }
+        }
+      }
+      
+      value = fixedArray;
+      
+      if (!dynamicType && baseType == "--anonymous")
+      {
+        var invalid:Bool = false;
+        for (i in 0...fixedArray.length)
+        {
+          var fields:Array<Field> = types[i];
+          for (j in i + 1 ... fixedArray.length)
+          {
+            var other:Array<Field> = types[j];
+            if (!compareStructures(fields, other))
+            {
+              invalid = true;
+              break;
+            }
+          }
+          if (invalid)
+          {
+            dynamicType = true;
+            break;
+          }
+        }
+      }
+      
+      if (dynamicType)
+      {
+        var expr:Expr = macro new Array<Dynamic>();
+        overrideType = Context.toComplexType(Context.typeof(expr));
+      }
+    }
+    
+    var valueExpr:Expr = Context.makeExpr(value, pos);
+    var valueType:ComplexType;
+    try
+    {
+      valueType = overrideType != null ? overrideType : Context.toComplexType(Context.typeof(valueExpr));
+    }
+    catch (e:Dynamic)
+    {
+      //trace(e);
+      valueType = macro :Dynamic;
+    }
+    
     var resName:String = null;
     
     // Remove old values.
@@ -305,14 +608,49 @@ class BuildConfig
     });
   }
   
+  #end
+  
+  private static function compareStructures(first:Array<Field>, second:Array<Field>):Bool
+  {
+    for (a in first)
+    {
+      var pair:Field = null;
+      for (b in second)
+      {
+        if (a.name == b.name)
+        {
+          pair = b;
+          break;
+        }
+      }
+      if (pair == null) return false;
+      var aType:ComplexType =
+      switch (a.kind)
+      {
+        case FieldType.FVar(t, _): t;
+        default: null;
+      }
+      var bType:ComplexType =
+      switch (pair.kind)
+      {
+        case FieldType.FVar(t, _): t;
+        default: null;
+      }
+      // Quite hacky, but works...
+      if (Std.string(aType) != Std.string(bType)) return false;
+    }
+    return true;
+  }
+  
   private static function checkOverride(name:String, target:Array<Field>):Void
   {
     var i:Int = 0;
     var getName:String = "get_" + name;
+    var setName:String = "set_" + name;
     while (i < target.length)
     {
       var field:Field = target[i];
-      if (field.name == name)
+      if (field.name == name || field.name == setName)
       {
         target.splice(i, 1);
         continue;
@@ -321,6 +659,7 @@ class BuildConfig
       {
         target.splice(i, 1);
         // Remove corresponding resource, if it's not inlined.
+        #if !bc_debug
         if (field.doc != null)
         {
           for (res in resources.fields)
@@ -332,6 +671,7 @@ class BuildConfig
             }
           }
         }
+        #end
         continue;
       }
       i++;
