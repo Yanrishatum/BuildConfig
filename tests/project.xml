@@ -16,14 +16,13 @@
 	<source path="src" />
 	<source path="../" />
 	<haxelib name="openfl" />
-	<haxelib name="actuate" />
 	<haxelib name="tjson"/>
   
-  <haxedef name="bc_write"/>
+  <!--<haxedef name="bc_write"/>-->
   <haxedef name="bc_merge"/>
   
-	<!-- optimize output
-	<haxeflag name="-dce full" /> -->
+	<!-- optimize output -->
+	<haxeflag name="-dce full" />
 	<haxeflag name="-D dump=pretty" /> -->
 	
 </project>

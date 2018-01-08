@@ -51,7 +51,16 @@ class BuildConfig
       buildFile(file, includeConfigName, result);
     }
     //trace(resources.fields.length);
+    
     if (resources.fields.length != 0) Context.defineType(resources);
+    
+    //var i:Int = definitionsList.length - 1;
+    //while (i >= 0)
+    //{
+      //Context.defineType(definitionsList[i]);
+      //i--;
+    //}
+    //Context.defineModule("com.bconfig.externs", definitionsList);
     
     for (def in definitions) Context.defineType(def);
     
@@ -81,6 +90,7 @@ class BuildConfig
   private static var root:Array<Field>;
   /** List of all typedefs. */
   private static var definitions:Map<String, TypeDefinition> = new Map();
+  //private static var definitionsList:Array<TypeDefinition> = new Array();
   
   private static var includingConfigNames:Bool;
   
@@ -141,6 +151,7 @@ class BuildConfig
           #end
       //}
     }
+    //Context.fatalError("File in path '" + file + "' not found!", Context.makePosition( { min:0, max:0, file: file } ));
     throw "File in path '" + file + "' not found!";
     return null;
   }
@@ -354,9 +365,9 @@ class BuildConfig
       doc: "Debug path: " + path.join(".") + "." + name,
       access: isStatic ? [Access.APublic, Access.AStatic] : [Access.APublic],
       kind: if (Context.defined("bc_write") && !isInline)
-              FieldType.FProp("get_" + name, "set_" + name, valueType)
+              FieldType.FProp("get", "set", valueType)
             else
-              FieldType.FProp("get_" + name, "never", valueType)
+              FieldType.FProp("get", "never", valueType)
     });
     
     // Generating getter function
@@ -510,9 +521,9 @@ class BuildConfig
       doc: (isInline ? "Inlined = " + Std.string(value) : "Non inlined, resource #" + resources.fields.length),
       access: isStatic ? [Access.APublic, Access.AStatic] : [Access.APublic],
       kind: if (Context.defined("bc_write") && !isInline)
-              FieldType.FProp("get_" + name, "set_" + name, valueType)
+              FieldType.FProp("get", "set", valueType)
             else
-              FieldType.FProp("get_" + name, "never", valueType)
+              FieldType.FProp("get", "never", valueType)
     });
     // Generating getter function
     var fun:FieldType;
@@ -680,12 +691,25 @@ class BuildConfig
   
   private static function insertNode(name:String, node:TypeDefinition, target:Array<Field>, isStatic:Bool = false):Void
   {
+    var path:ComplexType = ComplexType.TPath( { pack: node.pack, name: node.name } );
     target.push(
     {
       name: name,
       pos: pos,
       access: isStatic ? [Access.APublic, Access.AStatic] : [Access.APublic],
-      kind: FieldType.FVar(ComplexType.TPath( { pack:node.pack, name:node.name } ))
+      kind: FieldType.FProp("get", "never", path)
+    });
+    target.push(
+    {
+      name: "get_" + name,
+      pos: pos,
+      access: isStatic ? [Access.APrivate, Access.AInline, Access.AStatic] : [Access.APrivate, Access.AInline],
+      kind: FieldType.FFun( {
+        args: [],
+        ret: path,
+        expr: macro return null,
+        params: []
+      })
     });
   }
   
@@ -699,12 +723,13 @@ class BuildConfig
       pack: ["com", "bconfig", "externs"],
       name: nodeName + (definitionsCount++) + "_" + name,
       pos: pos,
-      isExtern: true,
-      kind: TypeDefKind.TDClass(),
+      //isExtern: true,
+      kind: TypeDefKind.TDAbstract(ComplexType.TAnonymous([])),
       fields: []
     };
     insertNode(name, def, target, target == root);
     definitions.set(id, def);
+    //definitionsList.push(def);
     return def;
   }
   

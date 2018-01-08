@@ -16,22 +16,23 @@
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
-    <class path="E:\HaxeToolkit\haxe\lib\openfl\3,3,3" />
-    <class path="E:\HaxeToolkit\haxe\lib\lime\2,6,2" />
-    <class path="E:\HaxeToolkit\haxe\lib\actuate\1,8,3" />
-    <class path="E:\HaxeToolkit\haxe\lib\tjson\1,4,0" />
+    <class path="E:\HaxeToolkit\lib_ofl4\openfl\4,5,3" />
+    <class path="E:\HaxeToolkit\lib_ofl4\lime\3,6,1" />
+    <class path="E:\HaxeToolkit\lib_ofl4\tjson\1,3,0" />
     <class path="src" />
     <class path=".." />
-    <class path="bin\flash\haxe" />
+    <class path="E:\HaxeToolkit\lib_ofl4\openfl\4,5,3\externs\core\openfl" />
+    <class path="E:\HaxeToolkit\lib_ofl4\openfl\4,5,3\externs\extras" />
+    <class path="bin\windows\cpp\debug\haxe" />
   </classpaths>
   <!-- Build options -->
   <build>
-    <option directives="openfl=3.3.3&#xA;lime=2.6.2&#xA;actuate=1.8.3&#xA;tjson=1.4.0&#xA;openfl-next&#xA;tools=2.6.2&#xA;bc_write&#xA;no-compilation&#xA;bc_merge&#xA;openfl-flash&#xA;web&#xA;dump=pretty&#xA;display" />
+    <option directives="openfl=4.5.3&#xA;lime=3.6.1&#xA;tjson=1.3.0&#xA;tools=3.6.1&#xA;no-compilation&#xA;bc_merge&#xA;native&#xA;lime-native&#xA;lime-vorbis&#xA;openfl-native&#xA;lime-cffi&#xA;windows&#xA;desktop&#xA;dump=pretty&#xA;display" />
     <option flashStrict="False" />
     <option noInlineOnDebug="False" />
     <option mainClass="ApplicationMain" />
     <option enabledebug="True" />
-    <option additional="-swf-version 11.2&#xA;-debug " />
+    <option additional="--macro openfl._internal.utils.ExtraParams.include()&#xA;--macro lime.Lib.extraParams()&#xA;--remap flash:openfl&#xA;-dce full&#xA;-debug " />
   </build>
   <!-- haxelib libraries -->
   <haxelib>

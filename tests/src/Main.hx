@@ -13,6 +13,8 @@ class Main extends Sprite
 	public function new() 
 	{
 		super();
+    //trace(JustTest.something);
+    //trace(JustTest.something.get_vars());
     trace(TwoMerged.boolValue);
     trace(TwoMerged.subNode.c2_subNodeValue);
     trace(SingleConfig.floatValue2);
